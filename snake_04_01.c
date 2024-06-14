@@ -2,9 +2,10 @@
 представляет собой голову(один элемента) и хвост(массив координат элементов тела)*/
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h> //для функции sleep, read
-#include <ncurses.h>
+#include <ncurses.h> // макросы KEY_
 
 // границы поля перемещения
 #define MAX_X 15
@@ -13,19 +14,17 @@
 enum {LEFT = 1, UP, RIGHT, DOWN, STOP_GAME = KEY_F(10)};
 
 // Коды управления змейкой и присвоенные клавиши хранятся в структурах. Змейка управляется нажатием клавиш «вверх», «вниз», «вправо», «влево».
-struct control_buttons
-{
+struct control_buttons {
     int down;
     int up;
     int left;
     int right;
-} control_buttons;
+};
 
-struct control_buttons default_controls= {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT};
+struct control_buttons controls = {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT};
 
 // Структура элемента хвоста
-typedef struct tail_t
-{
+typedef struct tail_t {
 	int x; // координата элемента хвоста
 	int y;
 } tail_t;
@@ -35,14 +34,12 @@ x,y - координаты текущей позиции головы
 direction - направление движения
 tsize - размер хвоста
 *tail -  ссылка на хвост */
-typedef struct snake_t
-{
+typedef struct snake_t {
 	int x;				 // координаты головы
 	int y;
 	struct tail_t *tail; // множество элементов хвоста (ссылка на хвост).
-	size_t tsize;		 // длина хвоста змеи, т.е. количество элементов хвоста (без головы)
-	// struct control_buttons controls;
-	// int direction;
+	size_t tsize;		 // длина хвоста змеи, т.е. количество элементов хвоста (без головы)	
+	int direction;
 } snake_t;
 
 
@@ -57,6 +54,7 @@ struct snake_t initSnake(int x, int y, size_t tsize)
 	snake.x = x;
 	snake.y = y;
 	snake.tsize = tsize;
+	snake.direction = LEFT;	
 	snake.tail = (tail_t *)malloc(sizeof(tail_t) * 100); // выделяем динамическую память под 100 элементов хвоста змеи (пока она заполнена мусором)
 	// инициализируем хвост - создаем количество элеметов по длине змеи
 	for (int i = 0; i < tsize; ++i)
@@ -120,24 +118,24 @@ snake_t moveLeft(snake_t snake)
 // void changeDirection(snake_t* snake, const int32_t key).
 void changeDirection(snake_t* snake, const int32_t key)
 {
-    if (key == snake->controls.down)
+    if (key == controls.down)
         snake->direction = DOWN;
-    else if (key == snake->controls.up)
+    else if (key == controls.up)
         snake->direction = UP;
-    else if (key == snake->controls.right)
+    else if (key == controls.right)
         snake->direction = RIGHT;
-    else if (key == snake->controls.left)
+    else if (key == controls.left)
         snake->direction = LEFT;
 }
 
 // функция проверки корректности выбранного направления
-int checkDirection(snake_t* snake, int32_t key)
+// int checkDirection(snake_t* snake, int32_t key)
 
 int main()
 {
 	snake_t snake = initSnake(10, 5, 2); // создаем (инициализируем) змейку
 	printSnake(snake);
-	char key_pressed = 0;
+	int key_pressed = 0;
 
 	while (key_pressed != STOP_GAME) // сдвигается пока не уедет
 	{
@@ -146,7 +144,7 @@ int main()
 		system("clear");		 // очистка экрана, в stdlib (для Win "cls")
 		printSnake(snake);
 		// key_pressed = read(fileno(stdin), &key_pressed, 1); // Считываем клавишу STDIN_FILENO
-		read(fileno(stdin), &key_pressed, 4);
+		(read(fileno(stdin), &key_pressed, 4));			
 	}
 	return 0;
 }
