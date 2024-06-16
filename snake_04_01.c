@@ -11,7 +11,7 @@
 #define MAX_X 15
 #define MAX_Y 15
 
-enum {LEFT = 1, UP, RIGHT, DOWN, STOP_GAME = KEY_F(10)};
+enum {LEFT = 'a', UP = 'w', RIGHT = 'd', DOWN = 's', STOP_GAME = 'o'};
 
 // Коды управления змейкой и присвоенные клавиши хранятся в структурах. Змейка управляется нажатием клавиш «вверх», «вниз», «вправо», «влево».
 struct control_buttons {
@@ -21,7 +21,7 @@ struct control_buttons {
     int right;
 };
 
-struct control_buttons controls = {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT};
+struct control_buttons controls = {DOWN, UP, LEFT, RIGHT};
 
 // Структура элемента хвоста
 typedef struct tail_t {
@@ -100,17 +100,57 @@ void printSnake(snake_t snake)
 //    * <--     *
 //  ***        **
 // двигаем голову, а остальное за ней
-snake_t moveLeft(snake_t snake)
+void moveLeft(snake_t *snake)
 {
-	for (int i = snake.tsize - 1; i > 0; i--) // идем по хвосту с конца (чтобы не затереть раньше времени координаты левых элементов)
-		snake.tail[i] = snake.tail[i - 1];	  // присваивая координаты каждого левого элемента правому
-	snake.tail[0].x = snake.x;				  // нулевому элементу хвоста присваиваем координаты головы
-	snake.tail[0].y = snake.y;
-	snake.x = snake.x - 1; // голове присваиваем координату левее на один шаг
+	for (int i = snake->tsize - 1; i > 0; i--) // идем по хвосту с конца (чтобы не затереть раньше времени координаты левых элементов)
+		snake->tail[i] = snake->tail[i - 1];	  // присваивая координаты каждого левого элемента правому
+	snake->tail[0].x = snake->x;				  // нулевому элементу хвоста присваиваем координаты головы
+	snake->tail[0].y = snake->y;
+	snake->x = snake->x - 1; // голове присваиваем координату левее на один шаг
 	// контролируем, чтобы не появилиь отрицательные индексы
-	if (snake.x < 0)
-		snake.x = MAX_X - 1; // при подходе к левому краю появится справа
-	return snake;			 // возвращаем смещенную змейку
+	if (snake->x < 0)
+		snake->x = MAX_X - 1; // при подходе к левому краю появится справа
+}
+
+void moveUp(snake_t *snake)
+{
+	for (int i = snake->tsize - 1; i > 0; i--) // идем по хвосту с конца (чтобы не затереть раньше времени координаты левых элементов)
+		snake->tail[i] = snake->tail[i - 1];	  // присваиваем последующему элементу координаты предыдущего элемента
+	snake->tail[0].x = snake->x;	  // нулевому элементу хвоста присваиваем координаты головы
+	snake->tail[0].y = snake->y;
+	
+	snake->y = snake->y - 1; // голове присваиваем координату выше на один шаг
+	
+	// контролируем, чтобы не появилиь отрицательные индексы
+	if (snake->y < 0)
+		snake->y = MAX_Y - 1; // при подходе к верхнему краю появится снизу
+}
+
+void moveRight(snake_t *snake)
+{
+	for (int i = snake->tsize - 1; i > 0; i--) // идем по хвосту с конца (чтобы не затереть раньше времени координаты левых элементов)
+		snake->tail[i] = snake->tail[i - 1];	  // присваивая координаты каждого левого элемента правому
+	snake->tail[0].x = snake->x;				  // нулевому элементу хвоста присваиваем координаты головы
+	snake->tail[0].y = snake->y;
+	snake->x = snake->x + 1; // голове присваиваем координату правее на один шаг
+	
+	// контролируем, чтобы не появилиь отрицательные индексы
+	if (snake->x > MAX_X)
+		snake->x = 0; // при подходе к правому краю появится слева	
+}
+
+void moveDown(snake_t *snake)
+{
+	for (int i = snake->tsize - 1; i > 0; i--) // идем по хвосту с конца (чтобы не затереть раньше времени координаты левых элементов)
+		snake->tail[i] = snake->tail[i - 1];	  // присваиваем последующему элементу координаты предыдущего элемента
+	snake->tail[0].x = snake->x;	  // нулевому элементу хвоста присваиваем координаты головы
+	snake->tail[0].y = snake->y;
+	
+	snake->y = snake->y + 1; // голове присваиваем координату ниже на один шаг
+	
+	// контролируем, чтобы не появилиь отрицательные индексы
+	if (snake->y > MAX_Y)
+		snake->y = 0; // при подходе к верхнему краю появится снизу
 }
 
 // Управление движением
@@ -118,33 +158,50 @@ snake_t moveLeft(snake_t snake)
 // void changeDirection(snake_t* snake, const int32_t key).
 void changeDirection(snake_t* snake, const int32_t key)
 {
-    if (key == controls.down)
-        snake->direction = DOWN;
-    else if (key == controls.up)
-        snake->direction = UP;
-    else if (key == controls.right)
-        snake->direction = RIGHT;
-    else if (key == controls.left)
-        snake->direction = LEFT;
+    if (key == controls.down && snake->direction != UP)
+	{
+		snake->direction = DOWN;
+		moveDown(snake);
+	}
+        
+    else if (key == controls.up && snake->direction != DOWN)
+	{
+		snake->direction = UP;
+		moveUp(snake);
+	}        
+    else if (key == controls.right && snake->direction != LEFT)
+	{
+		snake->direction = RIGHT;
+		moveRight(snake);
+	}
+        
+    else if (key == controls.left && snake->direction != RIGHT)
+    {
+		snake->direction = LEFT;
+		moveLeft(snake);
+	}
 }
 
 // функция проверки корректности выбранного направления
 // int checkDirection(snake_t* snake, int32_t key)
 
-int main()
+int main(void)
 {
 	snake_t snake = initSnake(10, 5, 2); // создаем (инициализируем) змейку
 	printSnake(snake);
 	int key_pressed = 0;
+	// initscr(); // Start curses mode - undifined symbol for architecture arm64
 
-	while (key_pressed != STOP_GAME) // сдвигается пока не уедет
+	while (key_pressed != STOP_GAME) // сдвигается пока не уедет	
 	{
-		snake = moveLeft(snake); // движение змейки
-		sleep(1);				 // задержка перед смещением змейки (иллюзия движения)
-		system("clear");		 // очистка экрана, в stdlib (для Win "cls")
+		// snake = moveLeft(snake); // движение змейки нелево
+		changeDirection(&snake, key_pressed);
+		// sleep(1);				 // задержка перед смещением змейки (иллюзия движения)
+		system("clear");		 // очистка экрана
+		// system("cls");           // очистка экрана для Win
 		printSnake(snake);
-		// key_pressed = read(fileno(stdin), &key_pressed, 1); // Считываем клавишу STDIN_FILENO
-		(read(fileno(stdin), &key_pressed, 4));			
+		// read(fileno(stdin), &key_pressed, 4); // Считываем клавишу STDIN_FILENO
+		key_pressed = getchar(); // Считываем клавишу				
 	}
 	return 0;
 }
