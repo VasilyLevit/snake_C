@@ -4,16 +4,35 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <unistd.h> //для функции sleep, read
-#include <ncurses.h> // макросы KEY_
+#include <unistd.h>   //для функции sleep, read
+#include <ncurses.h>  // управления вводом-выводом на терминал
+#include <time.h>
 
 // границы поля перемещения
 #define MAX_X 15
 #define MAX_Y 15
+#define MAX_FOOD_SIZE 5
 
 enum {LEFT = 'a', UP = 'w', RIGHT = 'd', DOWN = 's', STOP_GAME = 'o'};
+// enum {LEFT = 1, UP, RIGHT, DOWN, STOP_GAME = KEY_F(10), CONTROLS = 3}; // семинар 3
 
-// Коды управления змейкой и присвоенные клавиши хранятся в структурах. Змейка управляется нажатием клавиш «вверх», «вниз», «вправо», «влево».
+// Структура элемента хвоста
+typedef struct tail_t {
+	int x; // координата элемента хвоста
+	int y;
+} tail_t;
+
+// Структура всей змейки
+typedef struct snake_t {
+	int x;				 // координаты головы
+	int y;
+	int direction;       // текущее направление движения
+	size_t tsize;		 // длина хвоста змеи, т.е. количество элементов хвоста (без головы)	
+	struct tail_t *tail; // множество элементов хвоста (ссылка на хвост).
+	// struct control_buttons* controls; // seminar 3
+} snake_t;
+
+// Структура - коды управления змейкой и присвоенные клавиши
 struct control_buttons {
     int down;
     int up;
@@ -22,32 +41,22 @@ struct control_buttons {
 };
 
 struct control_buttons controls = {DOWN, UP, LEFT, RIGHT};
+// struct control_buttons default_controls[CONTROLS] = {{KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},{'s', 'w', 'a', 'd'}, {'S','W','A','D'}}; // семинар 3
 
-// Структура элемента хвоста
-typedef struct tail_t {
-	int x; // координата элемента хвоста
-	int y;
-} tail_t;
-
-/* Структура всей змейки
-x,y - координаты текущей позиции головы
-direction - направление движения
-tsize - размер хвоста
-*tail -  ссылка на хвост */
-typedef struct snake_t {
-	int x;				 // координаты головы
-	int y;
-	struct tail_t *tail; // множество элементов хвоста (ссылка на хвост).
-	size_t tsize;		 // длина хвоста змеи, т.е. количество элементов хвоста (без головы)	
-	int direction;
-} snake_t;
-
+// Структура еды
+struct food {
+    int x, y;             // координаты
+    time_t put_time;      // время установки
+    char point;           // символ еды
+    uint8_t enable;       // состояние - была ли еда съедена
+} food[MAX_FOOD_SIZE];    // массив точек еды
 
 // --> x направление оси х слева направо
 // || Y напрвление оси y сверх вниз
 // \/
 // @** - счатаем изначально что она горизонтальна, голова слева, хвост справа
-// функция инициализации змейки (координаты головы, начальная длина змейки)
+
+// Функция инициализации змейки (координаты головы, начальная длина змейки)
 struct snake_t initSnake(int x, int y, size_t tsize)
 {
 	snake_t snake; // создаём переменную snake
@@ -65,8 +74,16 @@ struct snake_t initSnake(int x, int y, size_t tsize)
 	return snake;
 }
 
-// @**
-// печать смейки в виде матрицы
+// Функция устаноки начальных значение еды и выделения памяти
+void initFood(struct food f[], size_t size) {
+    struct food init = {0,0,0,0,0};
+    int max_y = 0, max_x = 0;
+    getmaxyx(stdscr, max_y, max_x);
+    for(size_t i = 0; i < size; i++)
+		f[i] = init;	
+}
+
+// Функция печати змейки в виде матрицы
 void printSnake(snake_t snake)
 {
 	char matrix[MAX_X][MAX_Y];
@@ -91,15 +108,12 @@ void printSnake(snake_t snake)
 	}
 }
 
-// шаг влево
-// <--  @** tsize = 2
-//     @**
-
 // движение змейки влево
 //  @**      @***
 //    * <--     *
 //  ***        **
 // двигаем голову, а остальное за ней
+// !!! есть смысл голову хранить отдельно, поскольку большая часть кода при смещении в 4х направлениях одинакова, кроме координат головы.
 void moveLeft(snake_t *snake)
 {
 	for (int i = snake->tsize - 1; i > 0; i--) // идем по хвосту с конца (чтобы не затереть раньше времени координаты левых элементов)
@@ -182,8 +196,54 @@ void changeDirection(snake_t* snake, const int32_t key)
 	}
 }
 
-// функция проверки корректности выбранного направления
+// функция проверки корректности выбранного направления (из семинара 3)
+// !!! в программе пока не используется
+// Змейка не может наступать на хвост, поэтому необходимо запретить
 // int checkDirection(snake_t* snake, int32_t key)
+// {
+// 	for (int i = 0; i < CONTROLS; i++)
+// 	{
+// 		if((snake -> controls.down == key && snake -> direction == UP) || 
+// 		(snake -> controls.up == key && snake -> direction == DOWN)
+// 		(snake -> controls.left == key && snake -> direction == RIGHT)
+// 		(snake -> controls.right == key && snake -> direction == LEFT))
+// 		{
+// 			return 0;
+// 		}
+// 		return 1;
+// 	}
+// }
+
+// функция проверки изменения выбранного направления (из семинара 3)
+// void changeDirection(snake_t* snake, const int32_t key)
+// {
+//     for (int i = 0; i < CONTROLS; i++)
+// 	{	
+// 		if (key == snake->controls[i].down)
+//         	snake->direction = DOWN;
+//     	else if (key == snake->controls[i].up)
+//         	snake->direction = UP;
+//     	else if (key == snake->controls[i].right)
+//         	snake->direction = RIGHT;
+//     	else if (key == snake->controls[i].left)
+//         	snake->direction = LEFT;
+// 	}
+// }
+
+// функция обновления/размещения еды(зерна) на поле
+void putFoodSeed(struct food *fp) {
+    int max_x=0, max_y=0;
+    char spoint[2] = {0};
+    getmaxyx(stdscr, max_y, max_x);
+    mvprintw(fp->y, fp->x, " ");
+    fp->x = rand() % (max_x - 1);
+    fp->y = rand() % (max_y - 2) + 1; //Не занимаем верхнюю строку
+    fp->put_time = time(NULL);
+    fp->point = '$';
+    fp->enable = 1;
+    spoint[0] = fp->point;
+    mvprintw(fp->y, fp->x, "%s", spoint);
+}
 
 int main(void)
 {
@@ -203,5 +263,7 @@ int main(void)
 		// read(fileno(stdin), &key_pressed, 4); // Считываем клавишу STDIN_FILENO
 		key_pressed = getchar(); // Считываем клавишу				
 	}
+	free(snake);
+    // endwin(); // Завершаем режим curses mod
 	return 0;
 }
