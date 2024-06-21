@@ -12,6 +12,7 @@ tsize - размер хвоста
 
 //  Инициализирующие константы
 #define MIN_Y 2
+#define DELAY_START 0.1
 
 enum {LEFT = 1, UP, RIGHT, DOWN, STOP_GAME = KEY_F(10), CONTROLS = 3};
 enum {MAX_TAIL_SIZE = 100, START_TAIL_SIZE = 3, MAX_FOOD_SIZE = 20, FOOD_EXPIRE_SECONDS = 10};
@@ -252,14 +253,11 @@ void addTail(struct snake_t *head)
 
 /* счётчик уровня (1 съеденная еда – 1 уровень) 
 !!! разобраться - начинается с 0, а потом сразу перескакивает на 2й уровень*/
-// size_t printLevel(struct snake_t *head)
 void printLevel(struct snake_t *head)
 {       
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
     mvprintw(0, max_x - 10, " LEVEL: %d ", head->tsize);
-    // refrgit statesh();
-    // return head->tsize - START_TAIL_SIZE;
 }
 
 /* вывод результата при завершении игры */
@@ -268,7 +266,7 @@ void printExit(struct snake_t *head)
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
     mvprintw(max_y / 2, max_x /2 - 5, "Level is %d ", head->tsize); // вывод по середине экрана
-    refresh();
+    refresh();  // обновление экрана
     getchar();  // окончательный выход при нажатии любой клавиши
 }
 
@@ -277,7 +275,7 @@ int main()
 {
     uint16_t max_x = 0, max_y = 0; // координаты максимумов поля
     clock_t begin;
-    double DELAY = 0.1;
+    double DELAY = DELAY_START;
     snake_t *snake = (snake_t *)malloc(sizeof(snake_t));
     initSnake(snake, START_TAIL_SIZE, 10, 10);
     initFood(food, MAX_FOOD_SIZE);  // инициализация (установка начальных, нулевых значений) еды
@@ -304,7 +302,10 @@ int main()
             changeDirection(snake, key_pressed); // меняем направление движения
         refreshFood(food, MAX_FOOD_SIZE);
         if (haveEat(snake, food))
-            addTail(snake);
+        {   addTail(snake);  // добавление элемента хвоста
+            printLevel(snake);
+            DELAY -= 0.009; // увеличиваем скорость
+        }
         while ((double)(clock() - begin) / CLOCKS_PER_SEC < DELAY) // задержака
         {}
     }
