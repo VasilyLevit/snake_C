@@ -14,7 +14,7 @@ tsize - размер хвоста
 #define MIN_Y 2
 #define DELAY_START 0.1
 
-enum {LEFT = 1, UP, RIGHT, DOWN, STOP_GAME = KEY_F(10), CONTROLS = 3};
+enum {LEFT = 1, UP, RIGHT, DOWN, STOP_GAME = KEY_F(10), PAUSE_GAME = 'p' ,CONTROLS = 3};
 enum {MAX_TAIL_SIZE = 100, START_TAIL_SIZE = 3, MAX_FOOD_SIZE = 20, FOOD_EXPIRE_SECONDS = 10};
 
 // Управление движением
@@ -257,7 +257,7 @@ void printLevel(struct snake_t *head)
 {       
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(0, max_x - 10, " LEVEL: %d ", head->tsize);
+    mvprintw(0, max_x - 10, " LEVEL: %d ", head->tsize - START_TAIL_SIZE); // вывод уровня в правом верхнем углу
 }
 
 /* вывод результата при завершении игры */
@@ -265,9 +265,19 @@ void printExit(struct snake_t *head)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(max_y / 2, max_x /2 - 5, "Level is %d ", head->tsize); // вывод по середине экрана
+    mvprintw(max_y / 2, max_x /2 - 5, "Level is %d ", head->tsize - START_TAIL_SIZE); // вывод урованя по середине экрана
     refresh();  // обновление экрана
     getchar();  // окончательный выход при нажатии любой клавиши
+}
+
+void pause(void)
+{
+    int max_x = 0, max_y = 0;
+    getmaxyx(stdscr, max_y, max_x);
+    mvprintw(max_y / 2, max_x /2 - 5, "Press P to continue"); // вывод по середине экрана
+    while (getch() != PAUSE_GAME)
+    {}
+    mvprintw(max_y / 2, max_x /2 - 5, "                   "); // убираем надпись    
 }
 
 // В теле main инициализируем змейку, прописываем настройки управления. Игра завершается при нажатии клавиши завершения игры – «F10». Пока клавиша не нажата, запускаем змейку.
@@ -293,7 +303,7 @@ int main()
     while (key_pressed != STOP_GAME)
     {
         begin = clock();       // фиксируем начальное время для расчете задержки
-        key_pressed = getch(); // Считываем клавишу
+        key_pressed = getch(); // Считываем клавишу              
         go(snake, max_x, max_y);
         goTail(snake);
         refresh(); // обновление экрана (если отключить, то хвост немного отстаёт от головы)
@@ -304,10 +314,12 @@ int main()
         if (haveEat(snake, food))
         {   addTail(snake);  // добавление элемента хвоста
             printLevel(snake);
-            DELAY -= 0.009; // увеличиваем скорость
-        }
+            DELAY -= 0.005; // увеличиваем скорость
+        }       
         while ((double)(clock() - begin) / CLOCKS_PER_SEC < DELAY) // задержака
         {}
+        if (key_pressed == PAUSE_GAME)
+            pause();  
     }
     printExit(snake); // Вывод финальной фразы. Окончательный вывод пр инажатии любой клавиши
     free(snake->tail);
