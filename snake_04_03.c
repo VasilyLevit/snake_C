@@ -13,22 +13,8 @@ tsize - размер хвоста
 //  Инициализирующие константы
 #define MIN_Y 2
 
-enum
-{
-    LEFT = 1,
-    UP,
-    RIGHT,
-    DOWN,
-    STOP_GAME = KEY_F(10),
-    CONTROLS = 3
-};
-enum
-{
-    MAX_TAIL_SIZE = 100,
-    START_TAIL_SIZE = 3,
-    MAX_FOOD_SIZE = 20,
-    FOOD_EXPIRE_SECONDS = 10
-};
+enum {LEFT = 1, UP, RIGHT, DOWN, STOP_GAME = KEY_F(10), CONTROLS = 3};
+enum {MAX_TAIL_SIZE = 100, START_TAIL_SIZE = 3, MAX_FOOD_SIZE = 20, FOOD_EXPIRE_SECONDS = 10};
 
 // Управление движением
 // Коды управления змейкой и присвоенные клавиши хранятся в структурах. Змейка управляется нажатием клавиш «вверх», «вниз», «вправо», «влево».
@@ -266,16 +252,24 @@ void addTail(struct snake_t *head)
 
 /* счётчик уровня (1 съеденная еда – 1 уровень) 
 !!! разобраться - начинается с 0, а потом сразу перескакивает на 2й уровень*/
-size_t printLevel(struct snake_t *head)
-{   
-    return head->tsize - START_TAIL_SIZE;
+// size_t printLevel(struct snake_t *head)
+void printLevel(struct snake_t *head)
+{       
+    int max_x = 0, max_y = 0;
+    getmaxyx(stdscr, max_y, max_x);
+    mvprintw(0, max_x - 10, " LEVEL: %d ", head->tsize);
+    // refrgit statesh();
+    // return head->tsize - START_TAIL_SIZE;
 }
 
 /* вывод результата при завершении игры */
 void printExit(struct snake_t *head)
 {
-    // mvprintw(10, 5, " Level: %u ", level);
-    printf("Level: %zu", printLevel(head));
+    int max_x = 0, max_y = 0;
+    getmaxyx(stdscr, max_y, max_x);
+    mvprintw(max_y / 2, max_x /2 - 5, "Level is %d ", head->tsize); // вывод по середине экрана
+    refresh();
+    getchar();  // окончательный выход при нажатии любой клавиши
 }
 
 // В теле main инициализируем змейку, прописываем настройки управления. Игра завершается при нажатии клавиши завершения игры – «F10». Пока клавиша не нажата, запускаем змейку.
@@ -300,7 +294,7 @@ int main()
     putFood(food, MAX_FOOD_SIZE);
     while (key_pressed != STOP_GAME)
     {
-        begin = clock();       // фиксируем начальное время
+        begin = clock();       // фиксируем начальное время для расчете задержки
         key_pressed = getch(); // Считываем клавишу
         go(snake, max_x, max_y);
         goTail(snake);
@@ -312,10 +306,9 @@ int main()
         if (haveEat(snake, food))
             addTail(snake);
         while ((double)(clock() - begin) / CLOCKS_PER_SEC < DELAY) // задержака
-        {
-        }
+        {}
     }
-    printExit(snake); // !!! разобраться, как зафиксировать результать на экране в режиме ncurses
+    printExit(snake); // Вывод финальной фразы. Окончательный вывод пр инажатии любой клавиши
     free(snake->tail);
     free(snake);
     endwin(); // Завершаем режим curses mod
