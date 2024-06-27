@@ -14,7 +14,8 @@ tsize - размер хвоста
 #define MIN_Y 2
 #define DELAY_START 0.1
 
-enum {LEFT = 1, UP, RIGHT, DOWN, STOP_GAME = KEY_F(10), PAUSE_GAME = 'p' ,CONTROLS = 3};
+typedef enum{LEFT = 1, UP, RIGHT, DOWN} Direction;
+enum {STOP_GAME = KEY_F(10), PAUSE_GAME = 'p' ,CONTROLS = 3};
 enum {MAX_TAIL_SIZE = 100, START_TAIL_SIZE = 3, MAX_FOOD_SIZE = 20, FOOD_EXPIRE_SECONDS = 10};
 
 // Управление движением
@@ -36,14 +37,13 @@ typedef struct snake_t
 {
     int x; // координата головы
     int y; // координата головы
-    int direction;
+    Direction direction;  // текущее направление
     size_t tsize;        //  длина змейки, т.е. количество элементов хвоста
     struct tail_t *tail; // множество элементов хвоста (ссылка на хвост)
     struct control_buttons *controls;
 } snake_t;
 
-/* Структура хвоста: Хвост это массив состоящий из координат
-x,y - т.е. это элементы тела змейки */
+/* Структура хвоста: массив координат x,y - это элементы тела змейки */
 typedef struct tail_t
 {
     int x;
@@ -51,12 +51,11 @@ typedef struct tail_t
 } tail_t;
 
 // Структура еды
-struct food
-{
+struct food {
     int x, y;          // координаты
     time_t put_time;   // время установки
     char point;        // символ еды
-    uint8_t enable;    // состояние - была ли еда съедена 0 или нет 1
+    uint8_t isEaten;    // состояние - была ли еда съедена 0 или нет 1
 } food[MAX_FOOD_SIZE]; // массив точек еды
 
 // инициализация хвоста
@@ -74,7 +73,7 @@ void initHead(struct snake_t *head, int x, int y)
 {
     head->x = x;
     head->y = y;
-    head->direction = RIGHT;
+    head->direction = RIGHT; // начальное нарпавление движения
 }
 
 // инициализация змейки
@@ -191,7 +190,7 @@ void putFoodSeed(struct food *fp)
     fp->y = rand() % (max_y - 2) + 1; // генерируем координату y еды не занимая верхнюю строку
     fp->put_time = time(NULL);
     fp->point = '$'; // записываем символ еды
-    fp->enable = 1;
+    fp->isEaten = 1;
     spoint[0] = fp->point;
     mvprintw(fp->y, fp->x, "%s", spoint);
 }
@@ -206,7 +205,7 @@ void putFood(struct food f[], size_t number_seeds)
 }
 
 /* обновление еды.
-Если через какое-то время(FOOD_EXPIRE_SECONDS) точка устаревает, или же она была съедена (food[i].enable==0), то происходит её повторная отрисовка и обновление времени */
+Если через какое-то время(FOOD_EXPIRE_SECONDS) точка устаревает, или же она была съедена (food[i].isEaten==0), то происходит её повторная отрисовка и обновление времени */
 void refreshFood(struct food f[], int nfood)
 {
     // int max_x=0, max_y=0;
@@ -216,7 +215,7 @@ void refreshFood(struct food f[], int nfood)
     {
         if (f[i].put_time) // если у точки есть время
         {
-            if (!f[i].enable || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS)
+            if (!f[i].isEaten || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS)
             {
                 putFoodSeed(&f[i]);
             }
@@ -226,16 +225,24 @@ void refreshFood(struct food f[], int nfood)
 
 /* Поедание зерна змейкой
 возникает, когда координаты головы совпадают с координатой зерна.
-В этом случае зерно помечается как enable=0.
+В этом случае зерно помечается как isEaten=0.
 Возвращаемая 1 должна инициировать увеличение хвоста*/
 _Bool haveEat(struct snake_t *head, struct food f[])
 {
     for (size_t i = 0; i < MAX_FOOD_SIZE; i++)
-        if (f[i].enable && head->x == f[i].x && head->y == f[i].y)
+        if (f[i].isEaten && head->x == f[i].x && head->y == f[i].y)
         {
-            f[i].enable = 0;
+            f[i].isEaten = 0;
             return 1;
         }
+    return 0;
+}
+
+/* Столкновение головы с хвостом - сравнение координаты головы с массивом хвоста*/
+_Bool isCrush(snake_t *snake) {
+    for(size_t i=1; i<snake->tsize; i++)
+       if(snake->x == snake->tail[i].x && snake->y == snake->tail[i].y)
+           return 1;
     return 0;
 }
 
@@ -314,12 +321,14 @@ int main()
         if (haveEat(snake, food))
         {   addTail(snake);  // добавление элемента хвоста
             printLevel(snake);
-            DELAY -= 0.005; // увеличиваем скорость
+            DELAY -= 0.001; // увеличиваем скорость
         }       
         while ((double)(clock() - begin) / CLOCKS_PER_SEC < DELAY) // задержака
         {}
         if (key_pressed == PAUSE_GAME)
-            pause();  
+            pause();
+        if (isCrush(snake))
+            break;
     }
     printExit(snake); // Вывод финальной фразы. Окончательный вывод пр инажатии любой клавиши
     free(snake->tail);
