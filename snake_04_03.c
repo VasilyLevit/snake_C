@@ -21,6 +21,8 @@ tsize - размер хвоста
 #define PLAYERS 2
 #define CONTROLS 2 //количество наборов клавиш управления
 
+void setColor(int);
+
 typedef enum{LEFT = 1, UP, RIGHT, DOWN} Direction;
 enum {STOP_GAME = KEY_F(10), PAUSE_GAME = 'p'};
 enum {MAX_TAIL_SIZE = 100, START_TAIL_SIZE = 3, MAX_FOOD_SIZE = 20, FOOD_EXPIRE_SECONDS = 10};
@@ -49,6 +51,7 @@ typedef struct snake_t {
     size_t tsize;        //  длина змейки, т.е. количество элементов хвоста
     tail_t *tail; // множество элементов хвоста (ссылка на хвост)
     struct control_buttons *controls;
+    int color;
 } snake_t;
 
 // Структура еды
@@ -95,6 +98,7 @@ void initSnake(snake_t *head[], size_t size, int x, int y, int i) {
     head[i]->tail = tail; // прикрепляем к голове хвост
     head[i]->tsize = size + 1;
     head[i]->controls = default_controls;
+    head[i]->color = i+1;
 }
 
 /* инициализация еды - установка начальных значений */
@@ -114,6 +118,7 @@ void go(struct snake_t *head)
     int max_x=0, max_y=0;
     getmaxyx(stdscr, max_y, max_x);
     char ch = '@';
+    setColor(head->color);
     mvprintw(head->y, head->x, " "); // очищаем один символ
     switch (head->direction)
     {
@@ -147,6 +152,7 @@ void go(struct snake_t *head)
 void goTail(struct snake_t *head)
 {
     char ch = '*';
+    setColor(head->color);
     mvprintw(head->tail[head->tsize - 1].y, head->tail[head->tsize - 1].x, " ");
     for (size_t i = head->tsize - 1; i > 0; i--)
     {
@@ -200,6 +206,7 @@ void putFoodSeed(struct food *fp)
     fp->y = rand() % (max_y - 2) + 1; // генерируем координату y еды не занимая верхнюю строку
     fp->put_time = time(NULL);
     fp->point = '$'; // записываем символ еды
+    
     fp->isEaten = 1;
     spoint[0] = fp->point;
     mvprintw(fp->y, fp->x, "%s", spoint);
@@ -295,6 +302,9 @@ void pause(void)
     mvprintw(max_y / 2, max_x /2 - 5, "                   "); // убираем надпись    
 }
 
+void startMenu()
+{}
+
 /* проверка корректности выставления зерна*/
 void repairSeed(struct food f[], size_t nfood, struct snake_t *head) {
     for( size_t i=0; i<head->tsize; i++ )
@@ -328,10 +338,29 @@ void update(struct snake_t *head, struct food f[], const int32_t key) {
     }
 }
 
+void setColor(int objectType) {
+    attroff(COLOR_PAIR(1));
+    attroff(COLOR_PAIR(2));
+    attroff(COLOR_PAIR(3));
+    switch (objectType){
+        case 1:{               // SNAKE1
+            attron(COLOR_PAIR(1)); // включения цвета из палитры цветов
+            break;
+        }
+        case 2:{              // SNAKE2
+            attron(COLOR_PAIR(2));
+            break; 
+        }
+        case 3:{              // FOOD
+            attron(COLOR_PAIR(3));
+            break;
+        } 
+    }
+}
+
 // В теле main инициализируем змейку, прописываем настройки управления. Игра завершается при нажатии клавиши завершения игры – «F10». Пока клавиша не нажата, запускаем змейку.
 int main()
 {
-    uint16_t max_x = 0, max_y = 0; // координаты максимумов поля
     clock_t begin;
     double DELAY = DELAY_START;
     snake_t* snakes[PLAYERS];
@@ -346,12 +375,18 @@ int main()
     raw();                          // Откдючаем line buffering
     noecho();                       // Отключаем echo() режим пока считываем символы getch
     curs_set(FALSE);                // Отключаем курсор
-    getmaxyx(stdscr, max_y, max_x); // Измеряем размер экрана в рядах и колонках
     // Печать в позиции x y (printw - печать в текущей позиции курсора)
-    mvprintw(0, 0, " Use arrows for control. Press 'F10' for EXIT. Press 'P' for pause. Field: %u %u", max_x, max_y);
+    mvprintw(0, 0, " Use arrows for control. Press 'F10' for EXIT. Press 'P' for pause.");
     timeout(0); // Отключаем таймаут после нажатия клавиши в цикле (иначе цикл будет ожидать нажатие клавиш)
     int key_pressed = 0;
     putFood(food, SEED_NUMBER);
+    
+    // инициализация платитры цветов
+    start_color();
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_BLUE, COLOR_BLACK);
+    init_pair(3, COLOR_GREEN, COLOR_BLACK);
+
     while (key_pressed != STOP_GAME)
     {
         begin = clock();       // фиксируем начальное время для расчете задержки
