@@ -13,6 +13,7 @@ tsize - размер хвоста
 //  Инициализирующие константы
 #define MIN_Y 2
 #define DELAY_START 0.1
+#define SEED_NUMBER 5
 
 typedef enum{LEFT = 1, UP, RIGHT, DOWN} Direction;
 enum {STOP_GAME = KEY_F(10), PAUSE_GAME = 'p' ,CONTROLS = 3};
@@ -52,11 +53,11 @@ typedef struct tail_t
 
 // Структура еды
 struct food {
-    int x, y;          // координаты
-    time_t put_time;   // время установки
-    char point;        // символ еды
+    int x, y;           // координаты
+    time_t put_time;    // время установки
+    char point;         // символ еды
     uint8_t isEaten;    // состояние - была ли еда съедена 0 или нет 1
-} food[MAX_FOOD_SIZE]; // массив точек еды
+} food[MAX_FOOD_SIZE];  // массив точек еды
 
 // инициализация хвоста
 void initTail(struct tail_t t[], size_t size)
@@ -87,12 +88,13 @@ void initSnake(snake_t *head, size_t size, int x, int y)
     head->controls = default_controls;
 }
 
-// инициализация еды
+/* инициализация еды - установка начальных значений */
 void initFood(struct food f[], size_t size)
 {
-    struct food init = {0, 0, 0, 0, 0};
+    struct food init = {0, 0, 0, 0, 0}; // создаём еду с нулевыми значениями полей
     // int max_y = 0, max_x = 0;
     // getmaxyx(stdscr, max_y, max_x);
+    // заполняем масив еды нулевыми значениями
     for (size_t i = 0; i < size; i++)
         f[i] = init;
 }
@@ -195,7 +197,7 @@ void putFoodSeed(struct food *fp)
     mvprintw(fp->y, fp->x, "%s", spoint);
 }
 
-/*  Размещаем еду на поле */
+/* Размещаем еду на поле */
 void putFood(struct food f[], size_t number_seeds)
 {
     for (size_t i = 0; i < number_seeds; i++)
@@ -211,12 +213,10 @@ void refreshFood(struct food f[], int nfood)
     // int max_x=0, max_y=0;
     // char spoint[2] = {0};
     // getmaxyx(stdscr, max_y, max_x);
-    for (size_t i = 0; i < nfood; i++)
-    {
-        if (f[i].put_time) // если у точки есть время
-        {
-            if (!f[i].isEaten || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS)
-            {
+    // пробегаем по массиву еды и проверяем время и была ли съедена
+    for (size_t i = 0; i < nfood; i++) {
+        if (f[i].put_time) { // если у точки время не нулевое
+            if (!f[i].isEaten || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS) {
                 putFoodSeed(&f[i]);
             }
         }
@@ -287,6 +287,25 @@ void pause(void)
     mvprintw(max_y / 2, max_x /2 - 5, "                   "); // убираем надпись    
 }
 
+/* проверка корректности выставления зерна*/
+void repairSeed(struct food f[], size_t nfood, struct snake_t *head) {
+    for( size_t i=0; i<head->tsize; i++ )
+        for( size_t j=0; j<nfood; j++ ) {
+            /* Если хвост совпадает с зерном */
+            if( f[j].x == head->tail[i].x && f[j].y == head->tail[i].y && f[i].isEaten) {
+                mvprintw(1, 0, "Repair tail seed %zu",j);
+                putFoodSeed(&f[j]);
+            }
+        }
+    for( size_t i=0; i<nfood; i++ )
+        for( size_t j=0; j<nfood; j++ ) {
+            /* Если два зерна на одной точке */
+            if( i!=j && f[i].isEaten && f[j].isEaten && f[j].x == f[i].x && f[j].y == f[i].y && f[i].isEaten ) {
+                mvprintw(1, 0, "Repair same seed %zu",j);
+                putFoodSeed(&f[j]);
+            }
+        } 
+}
 // В теле main инициализируем змейку, прописываем настройки управления. Игра завершается при нажатии клавиши завершения игры – «F10». Пока клавиша не нажата, запускаем змейку.
 int main()
 {
@@ -306,7 +325,7 @@ int main()
     mvprintw(0, 0, " Use arrows for control. Press 'F10' for EXIT. Press 'P' for pause. Field: %u %u", max_x, max_y);
     timeout(0); // Отключаем таймаут после нажатия клавиши в цикле (иначе цикл будет ожидать нажатие клавиш)
     int key_pressed = 0;
-    putFood(food, MAX_FOOD_SIZE);
+    putFood(food, SEED_NUMBER);
     while (key_pressed != STOP_GAME)
     {
         begin = clock();       // фиксируем начальное время для расчете задержки
@@ -329,6 +348,7 @@ int main()
             pause();
         if (isCrush(snake))
             break;
+        repairSeed(food, SEED_NUMBER, snake);
     }
     printExit(snake); // Вывод финальной фразы. Окончательный вывод пр инажатии любой клавиши
     free(snake->tail);
