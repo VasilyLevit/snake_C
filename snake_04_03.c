@@ -302,8 +302,53 @@ void pause(void)
     mvprintw(max_y / 2, max_x /2 - 5, "                   "); // убираем надпись    
 }
 
-void startMenu()
-{}
+void startMenu() {
+    initscr();              // Начать curses mode
+    noecho();               // Отключаем echo() режим пока считываем символы getch
+    curs_set(FALSE);                // Отключаем курсор
+    cbreak();
+    if(!has_colors()) {  // если цвет не поддерживается терминалом
+        endwin();           // Завершаем режим curses mod
+        printf("Your terminal does,t support color\n");
+        exit(1);
+    }
+    start_color();
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+    
+    attron(COLOR_PAIR(1)); // включения цвета из палитры цветов
+    mvprintw(1, 1, "1. Start");
+    attroff(COLOR_PAIR(1));  // выключения цвета из палитры цветов
+
+    attron(COLOR_PAIR(2));
+    mvprintw(3, 1, "2. Exit");
+    attron(COLOR_PAIR(1));
+    mvprintw(7, 30, "@*******************************************@");
+    attron(COLOR_PAIR(2));
+    mvprintw(10, 32, "* S N A K E @ S N A K E @ S N A K E @ *");
+    mvprintw(13, 30, "@*******************************************@");
+    char ch = '0';
+    while (1)
+    {
+        ch = getch();
+        if (ch == '1') {
+            clear();
+            attron(COLOR_PAIR(2));
+            mvprintw(10, 50, "S N A K E");
+            attron(COLOR_PAIR(1));
+            mvprintw(20, 50, "Press any key ...");
+            break;
+        }
+        else if (ch == '2')
+        {
+            endwin();
+            exit(0);
+        }        
+    }
+    refresh();
+    getch();
+    endwin();
+}
 
 /* проверка корректности выставления зерна*/
 void repairSeed(struct food f[], size_t nfood, struct snake_t *head) {
@@ -338,8 +383,9 @@ void update(struct snake_t *head, struct food f[], const int32_t key) {
     }
 }
 
+/* функция включения цвета*/
 void setColor(int objectType) {
-    attroff(COLOR_PAIR(1));
+    attroff(COLOR_PAIR(1));  // выключения цвета из палитры цветов
     attroff(COLOR_PAIR(2));
     attroff(COLOR_PAIR(3));
     switch (objectType){
@@ -361,6 +407,7 @@ void setColor(int objectType) {
 // В теле main инициализируем змейку, прописываем настройки управления. Игра завершается при нажатии клавиши завершения игры – «F10». Пока клавиша не нажата, запускаем змейку.
 int main()
 {
+    startMenu();
     clock_t begin;
     double DELAY = DELAY_START;
     snake_t* snakes[PLAYERS];
